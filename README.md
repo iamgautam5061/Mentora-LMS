@@ -87,38 +87,38 @@ Role:
 Mentora-LMS/
 │
 ├── backend/
-│ ├── middleware/
-│ │ └── authMiddleware.js
-│ ├── prisma/
-│ │ ├── schema.prisma
-│ │ └── migrations/
-│ ├── routes/
-│ │ ├── auth.js
-│ │ ├── categories.js
-│ │ └── videos.js
-│ ├── utils/
-│ │ ├── cloudfront.js
-│ │ └── s3.js
-│ ├── keys/
-│ │ └── private_key.pem
-│ ├── server.js
-│ └── package.json
+│   ├── middleware/
+│   │   └── authMiddleware.js
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── categories.js
+│   │   └── videos.js
+│   ├── utils/
+│   │   ├── cloudfront.js
+│   │   └── s3.js
+│   ├── keys/
+│   │   └── private_key.pem
+│   ├── server.js
+│   └── package.json
 │
 ├── frontend/
-│ ├── public/
-│ ├── src/
-│ │ ├── components/
-│ │ │ ├── DashboardLayout.jsx
-│ │ │ └── Sidebar.jsx
-│ │ ├── pages/
-│ │ │ ├── AdminDashboard.jsx
-│ │ │ ├── TeacherDashboard.jsx
-│ │ │ ├── StudentDashboard.jsx
-│ │ │ ├── Login.jsx
-│ │ │ └── Register.jsx
-│ │ ├── App.jsx
-│ │ └── main.jsx
-│ └── package.json
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── DashboardLayout.jsx
+│   │   │   └── Sidebar.jsx
+│   │   ├── pages/
+│   │   │   ├── AdminDashboard.jsx
+│   │   │   ├── TeacherDashboard.jsx
+│   │   │   ├── StudentDashboard.jsx
+│   │   │   ├── Login.jsx
+│   │   │   └── Register.jsx
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   └── package.json
 │
 └── README.md
 
