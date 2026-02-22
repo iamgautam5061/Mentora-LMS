@@ -84,8 +84,12 @@ Role:
 
 ## Project Structure
 
+# Mentora-LMS
+
+## Project Structure
+
+```
 Mentora-LMS/
-│
 ├── backend/
 │   ├── middleware/
 │   │   └── authMiddleware.js
@@ -121,9 +125,7 @@ Mentora-LMS/
 │   └── package.json
 │
 └── README.md
-
-
----
+```
 
 ## Backend Setup
 
