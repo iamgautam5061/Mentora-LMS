@@ -3,7 +3,7 @@ const path = require("path");
 const { getSignedUrl } = require("@aws-sdk/cloudfront-signer");
 
 const privateKey = fs.readFileSync(
-  path.join(__dirname, "../keys/private_key.pem"),
+  path.join(__dirname, "../private_key.pem"),
   "utf8"
 );
 
