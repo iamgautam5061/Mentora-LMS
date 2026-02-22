@@ -17,38 +17,39 @@ function Login() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("role", res.data.role);
 
-      if (res.data.role === "teacher") {
-        navigate("/teacher");
-      } else {
-        navigate("/student");
-      }
-    } catch (err) {
+      if (res.data.role === "admin") navigate("/admin");
+      else if (res.data.role === "teacher") navigate("/teacher");
+      else navigate("/student");
+
+    } catch {
       alert("Login failed");
     }
   };
 
   return (
-  <div className="container">
-    <h2>Login</h2>
+    <div className="auth-wrapper">
+      <div className="auth-card">
+        <h2 className="auth-title">Welcome Back</h2>
 
-    <input
-      placeholder="Email"
-      onChange={(e) => setEmail(e.target.value)}
-    />
+        <input
+          placeholder="Email"
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-    <input
-      type="password"
-      placeholder="Password"
-      onChange={(e) => setPassword(e.target.value)}
-    />
+        <input
+          type="password"
+          placeholder="Password"
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
-    <button onClick={handleLogin}>Login</button>
+        <button onClick={handleLogin}>Login</button>
 
-    <div className="link-text">
-      Don't have an account? <Link to="/register">Register</Link>
+        <div className="auth-footer">
+          Don't have an account? <Link to="/register">Register</Link>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
 }
 
 export default Login;

@@ -5,12 +5,8 @@ const { PrismaClient } = require("@prisma/client");
 const { v4: uuidv4 } = require("uuid");
 const { verifyToken, verifyRole } = require("../middleware/authMiddleware");
 const { generateUploadUrl } = require("../utils/s3");
-
-const { 
-  S3Client, 
-  DeleteObjectCommand, 
-  CopyObjectCommand 
-} = require("@aws-sdk/client-s3");
+const { generateSignedUrl } = require("../utils/cloudfront");
+const { S3Client, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 
 const prisma = new PrismaClient();
 
@@ -22,6 +18,10 @@ const s3 = new S3Client({
   },
 });
 
+/* SLUG HELPER */
+const slugify = (text) =>
+  text.toLowerCase().replace(/\s+/g, "-").replace(/[^\w\-]+/g, "");
+
 /* ===========================
    TEACHER: GET PRESIGNED URL
 =========================== */
@@ -30,110 +30,51 @@ router.post(
   verifyToken,
   verifyRole("teacher"),
   async (req, res) => {
-    const { fileName, fileType, title, description } = req.body;
-
-    if (!fileName || !fileType || !title) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
     try {
-      const uniqueKey = `raw/${uuidv4()}_${fileName}`;
-      const uploadUrl = await generateUploadUrl(uniqueKey, fileType);
+      const { fileName, fileType, title, subjectId } = req.body;
+
+      if (!fileName || !fileType || !title || !subjectId) {
+        return res.status(400).json({ error: "Missing fields" });
+      }
+
+      const subject = await prisma.subject.findUnique({
+        where: { id: subjectId },
+        include: {
+          course: { include: { university: true } },
+        },
+      });
+
+      if (!subject) {
+        return res.status(404).json({ error: "Subject not found" });
+      }
+
+      const universitySlug = slugify(subject.course.university.name);
+      const courseSlug = slugify(subject.course.name);
+      const subjectSlug = slugify(subject.name);
+
+      const uniqueFileName = `${uuidv4()}_${fileName}`;
+
+      const s3Key = `videos/${subject.course.university.id}_${universitySlug}/${subject.course.id}_${courseSlug}/${subject.year}/${subject.semester}/${subject.id}_${subjectSlug}/${uniqueFileName}`;
+
+      const uploadUrl = await generateUploadUrl(s3Key, fileType);
 
       const video = await prisma.video.create({
         data: {
           title,
-          description,
-          rawKey: uniqueKey,
-          status: "uploaded",
-          uploadedBy: req.user.id,
+          s3Key,
+          userId: req.user.id,
+          subjectId,
         },
       });
 
-      return res.json({
+      res.json({
         uploadUrl,
         videoId: video.id,
       });
 
     } catch (err) {
-      console.error("UPLOAD URL ERROR:", err);
-      return res.status(500).json({ error: "Could not generate upload URL" });
-    }
-  }
-);
-
-/* ===========================
-   COMPLETE UPLOAD (AUTO COPY)
-=========================== */
-router.post(
-  "/complete-upload",
-  verifyToken,
-  verifyRole("teacher"),
-  async (req, res) => {
-    try {
-      const { videoId } = req.body;
-
-      const video = await prisma.video.findUnique({
-        where: { id: videoId },
-      });
-
-      if (!video) {
-        return res.status(404).json({ error: "Video not found" });
-      }
-
-      const processedKey = video.rawKey.replace("raw/", "processed/");
-
-      await s3.send(
-        new CopyObjectCommand({
-          CopySource: `${process.env.RAW_BUCKET}/${video.rawKey}`,
-          Bucket: process.env.PROCESSED_BUCKET,
-          Key: processedKey,
-        })
-      );
-
-      await prisma.video.update({
-        where: { id: videoId },
-        data: {
-          status: "processed",
-          processedKey: processedKey,
-        },
-      });
-
-      return res.json({ message: "Upload completed & processed" });
-
-    } catch (err) {
-      console.error("AUTO COPY ERROR:", err);
-      return res.status(500).json({ error: "Processing failed" });
-    }
-  }
-);
-
-/* ===========================
-   STUDENT: GET VIDEOS
-=========================== */
-router.get(
-  "/",
-  verifyToken,
-  verifyRole("student"),
-  async (req, res) => {
-    try {
-      const videos = await prisma.video.findMany({
-        where: { status: "processed" },
-        orderBy: { createdAt: "desc" },
-      });
-
-      const formatted = videos.map((video) => ({
-        id: video.id,
-        title: video.title,
-        description: video.description,
-        videoUrl: `${process.env.CLOUDFRONT_URL}/${video.processedKey}`,
-      }));
-
-      return res.json(formatted);
-
-    } catch (err) {
-      console.error("FETCH VIDEOS ERROR:", err);
-      return res.status(500).json({ error: "Could not fetch videos" });
+      console.error(err);
+      res.status(500).json({ error: "Upload failed" });
     }
   }
 );
@@ -148,21 +89,74 @@ router.get(
   async (req, res) => {
     try {
       const videos = await prisma.video.findMany({
-        where: { uploadedBy: req.user.id },
+        where: { userId: req.user.id },
+        include: {
+          subject: {
+            include: {
+              course: {
+                include: { university: true },
+              },
+            },
+          },
+        },
         orderBy: { createdAt: "desc" },
       });
 
-      return res.json(videos);
+      res.json(videos);
 
     } catch (err) {
-      console.error("FETCH TEACHER VIDEOS ERROR:", err);
-      return res.status(500).json({ error: "Could not fetch videos" });
+      console.error(err);
+      res.status(500).json({ error: "Fetch failed" });
     }
   }
 );
 
 /* ===========================
-   TEACHER: DELETE VIDEO
+   STUDENT: GET VIDEOS (SIGNED URL)
+=========================== */
+router.get(
+  "/",
+  verifyToken,
+  verifyRole("student"),
+  async (req, res) => {
+    try {
+      const videos = await prisma.video.findMany({
+        include: {
+          user: true,
+          subject: {
+            include: {
+              course: {
+                include: { university: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const formatted = videos.map((video) => ({
+        id: video.id,
+        title: video.title,
+        teacherName: video.user.name,
+        university: video.subject.course.university.name,
+        course: video.subject.course.name,
+        year: video.subject.year,
+        semester: video.subject.semester,
+        subject: video.subject.name,
+        videoUrl: generateSignedUrl(video.s3Key), // ✅ SIGNED URL
+      }));
+
+      res.json(formatted);
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Fetch failed" });
+    }
+  }
+);
+
+/* ===========================
+   DELETE VIDEO
 =========================== */
 router.delete(
   "/:id",
@@ -174,39 +168,26 @@ router.delete(
         where: { id: req.params.id },
       });
 
-      if (!video) {
-        return res.status(404).json({ error: "Video not found" });
-      }
-
-      if (video.uploadedBy !== req.user.id) {
-        return res.status(403).json({ error: "Not authorized" });
-      }
+      if (!video) return res.status(404).json({ error: "Not found" });
+      if (video.userId !== req.user.id)
+        return res.status(403).json({ error: "Unauthorized" });
 
       await s3.send(
         new DeleteObjectCommand({
-          Bucket: process.env.RAW_BUCKET,
-          Key: video.rawKey,
+          Bucket: process.env.S3_BUCKET,
+          Key: video.s3Key,
         })
       );
-
-      if (video.processedKey) {
-        await s3.send(
-          new DeleteObjectCommand({
-            Bucket: process.env.PROCESSED_BUCKET,
-            Key: video.processedKey,
-          })
-        );
-      }
 
       await prisma.video.delete({
         where: { id: req.params.id },
       });
 
-      return res.json({ message: "Video deleted successfully" });
+      res.json({ message: "Deleted successfully" });
 
     } catch (err) {
-      console.error("DELETE ERROR:", err);
-      return res.status(500).json({ error: "Could not delete video" });
+      console.error(err);
+      res.status(500).json({ error: "Delete failed" });
     }
   }
 );

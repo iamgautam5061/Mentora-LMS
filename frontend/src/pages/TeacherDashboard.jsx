@@ -1,190 +1,198 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import Navbar from "../components/Navbar";
+import DashboardLayout from "../components/DashboardLayout";
 
 function TeacherDashboard() {
-  const [file, setFile] = useState(null);
-  const [title, setTitle] = useState("");
-  const [videos, setVideos] = useState([]);
-  const [uploading, setUploading] = useState(false);
-
   const token = localStorage.getItem("token");
 
-  /* ===========================
-     FETCH TEACHER VIDEOS
-  =========================== */
-  const fetchVideos = async () => {
-    try {
-      const res = await axios.get(
-        "http://localhost:5000/api/videos/my-videos",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setVideos(res.data);
-    } catch (err) {
-      console.error("FETCH ERROR:", err);
-    }
+  const [categories, setCategories] = useState([]);
+  const [universities, setUniversities] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+
+  const [videos, setVideos] = useState([]);
+
+  const [selectedUniversity, setSelectedUniversity] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
+
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  /* FETCH CATEGORIES */
+  const fetchCategories = async () => {
+    const res = await axios.get("http://localhost:5000/api/categories");
+    setCategories(res.data);
+    setUniversities(res.data);
+  };
+
+  /* FETCH MY VIDEOS */
+  const fetchMyVideos = async () => {
+    const res = await axios.get(
+      "http://localhost:5000/api/videos/my-videos",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setVideos(res.data);
   };
 
   useEffect(() => {
-    fetchVideos();
+    fetchCategories();
+    fetchMyVideos();
   }, []);
 
-  /* ===========================
-     UPLOAD VIDEO
-  =========================== */
+  /* DROPDOWN LOGIC */
+  const handleUniversityChange = (e) => {
+    const id = e.target.value;
+    setSelectedUniversity(id);
+    setSelectedCourse("");
+    setSelectedSubject("");
+
+    const uni = categories.find((u) => u.id === id);
+    setCourses(uni ? uni.courses : []);
+    setSubjects([]);
+  };
+
+  const handleCourseChange = (e) => {
+    const id = e.target.value;
+    setSelectedCourse(id);
+    setSelectedSubject("");
+
+    const course = courses.find((c) => c.id === id);
+    setSubjects(course ? course.subjects : []);
+  };
+
+  /* UPLOAD */
   const uploadVideo = async () => {
-    if (!file || !title.trim()) {
-      alert("Please provide title and file");
+    if (!file || !title || !selectedSubject) {
+      alert("Fill all fields");
       return;
     }
 
     try {
       setUploading(true);
 
-      // Step 1: Get presigned URL
       const res = await axios.post(
         "http://localhost:5000/api/videos/get-upload-url",
         {
           fileName: file.name,
           fileType: file.type,
           title,
-          description: "Uploaded from frontend",
+          subjectId: selectedSubject,
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Step 2: Upload directly to S3
       await axios.put(res.data.uploadUrl, file, {
-        headers: { "Content-Type": "video/mp4" },
+        headers: { "Content-Type": file.type },
       });
 
-      // Direct copy to processed bucket
-      await axios.post(
-        "http://localhost:5000/api/videos/complete-upload",
-        { videoId: res.data.videoId },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-
-      alert("Upload successful!");
+      await fetchMyVideos();
 
       setTitle("");
       setFile(null);
+      setSelectedSubject("");
 
-      fetchVideos(); // refresh list
+      alert("Upload successful");
 
     } catch (err) {
-      console.error("UPLOAD ERROR:", err);
+      console.error(err);
       alert("Upload failed");
     } finally {
       setUploading(false);
     }
   };
 
-  /* ===========================
-     DELETE VIDEO
-  =========================== */
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this video?")) {
-      return;
-    }
+  const deleteVideo = async (id) => {
+    if (!window.confirm("Delete this video?")) return;
 
-    try {
-      await axios.delete(
-        `http://localhost:5000/api/videos/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+    await axios.delete(
+      `http://localhost:5000/api/videos/${id}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-      alert("Video deleted successfully");
-      fetchVideos();
-
-    } catch (err) {
-      console.error("DELETE ERROR:", err);
-      alert("Delete failed");
-    }
+    fetchMyVideos();
   };
 
   return (
-    <>
-      <Navbar />
+    <DashboardLayout>
+      <h1 className="page-title">Teacher Dashboard</h1>
 
-      <div className="dashboard-container">
-        <h2>Teacher Dashboard</h2>
+      <div className="card">
+        <h3>Upload Lecture</h3>
 
-        {/* ================= Upload Section ================= */}
-        <div className="video-card">
-          <h3>Upload New Lecture</h3>
+        <select value={selectedUniversity} onChange={handleUniversityChange}>
+          <option value="">Select University</option>
+          {universities.map((u) => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </select>
 
-          <input
-            placeholder="Video Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+        <select value={selectedCourse} onChange={handleCourseChange}>
+          <option value="">Select Course</option>
+          {courses.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
 
-          <input
-            type="file"
-            onChange={(e) => setFile(e.target.files[0])}
-          />
+        <select
+          value={selectedSubject}
+          onChange={(e) => setSelectedSubject(e.target.value)}
+        >
+          <option value="">Select Subject</option>
+          {subjects.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} (Year {s.year}, Sem {s.semester})
+            </option>
+          ))}
+        </select>
 
-          <button onClick={uploadVideo} disabled={uploading}>
-            {uploading ? "Uploading..." : "Upload Video"}
-          </button>
-        </div>
+        <input
+          placeholder="Video Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
 
-        {/* ================= My Videos ================= */}
-        <h3 style={{ marginTop: "40px" }}>My Videos</h3>
+        <input type="file" onChange={(e) => setFile(e.target.files[0])} />
 
-        {videos.length === 0 && (
-          <p>No videos uploaded yet.</p>
-        )}
+        <button onClick={uploadVideo} disabled={uploading}>
+          {uploading ? "Uploading..." : "Upload Video"}
+        </button>
+      </div>
+
+      <div className="card">
+        <h3>My Uploaded Videos</h3>
+
+        {videos.length === 0 && <p>No videos uploaded yet.</p>}
 
         {videos.map((video) => (
-          <div key={video.id} className="video-card">
-            <h4>{video.title}</h4>
-            <p>{video.description}</p>
+          <div
+            key={video.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "12px 0",
+              borderBottom: "1px solid #e5e7eb",
+            }}
+          >
+            <div>
+              <strong>{video.title}</strong>
+              <div style={{ fontSize: "13px", color: "#6b7280" }}>
+                {video.subject?.name}
+              </div>
+            </div>
 
-            {/* Status Badge */}
-            <span
-              className={`status-badge ${video.status === "processed"
-                ? "status-processed"
-                : "status-uploaded"
-                }`}
-            >
-              {video.status.toUpperCase()}
-            </span>
-
-            {/* Raw Key */}
-            <p style={{ fontSize: "12px", marginTop: "10px" }}>
-              Raw Key: {video.rawKey}
-            </p>
-
-            {/* Delete Button */}
             <button
-              style={{
-                marginTop: "15px",
-                backgroundColor: "#ef4444",
-                border: "none",
-                padding: "8px 12px",
-                borderRadius: "6px",
-                color: "white",
-                cursor: "pointer",
-              }}
-              onClick={() => handleDelete(video.id)}
+              style={{ background: "#ef4444" }}
+              onClick={() => deleteVideo(video.id)}
             >
-              Delete Video
+              Delete
             </button>
           </div>
         ))}
       </div>
-    </>
+    </DashboardLayout>
   );
 }
 

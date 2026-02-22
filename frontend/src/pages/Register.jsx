@@ -13,10 +13,7 @@ function Register() {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleRegister = async () => {
@@ -25,57 +22,35 @@ function Register() {
         "http://localhost:5000/api/auth/register",
         form
       );
-
-      alert("Registration successful!");
+      alert("Registration successful");
       navigate("/");
-    } catch (err) {
+    } catch {
       alert("Registration failed");
     }
   };
 
   return (
-  <div className="container">
-    <h2>Register</h2>
+    <div className="auth-wrapper">
+      <div className="auth-card">
+        <h2 className="auth-title">Create Account</h2>
 
-    <input
-      name="name"
-      placeholder="Name"
-      value={form.name}
-      onChange={handleChange}
-    />
+        <input name="name" placeholder="Name" onChange={handleChange} />
+        <input name="email" placeholder="Email" onChange={handleChange} />
+        <input type="password" name="password" placeholder="Password" onChange={handleChange} />
 
-    <input
-      name="email"
-      placeholder="Email"
-      value={form.email}
-      onChange={handleChange}
-    />
+        <select name="role" onChange={handleChange}>
+          <option value="student">Student</option>
+          <option value="teacher">Teacher</option>
+        </select>
 
-    <input
-      type="password"
-      name="password"
-      placeholder="Password"
-      value={form.password}
-      onChange={handleChange}
-    />
+        <button onClick={handleRegister}>Register</button>
 
-    <select
-      name="role"
-      value={form.role}
-      onChange={handleChange}
-    >
-      <option value="student">Student</option>
-      <option value="teacher">Teacher</option>
-    </select>
-
-    <button onClick={handleRegister}>Register</button>
-
-    <div className="link-text">
-      Already have an account? <Link to="/">Login</Link>
+        <div className="auth-footer">
+          Already have an account? <Link to="/">Login</Link>
+        </div>
+      </div>
     </div>
-  </div>
-);
-
+  );
 }
 
 export default Register;

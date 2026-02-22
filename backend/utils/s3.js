@@ -9,16 +9,14 @@ const s3 = new S3Client({
   },
 });
 
-exports.generateUploadUrl = async (key, fileType) => {
+async function generateUploadUrl(key, fileType) {
   const command = new PutObjectCommand({
-    Bucket: process.env.RAW_BUCKET,
+    Bucket: process.env.S3_BUCKET,
     Key: key,
     ContentType: fileType,
   });
 
-  const url = await getSignedUrl(s3, command, {
-    expiresIn: 300,
-  });
+  return await getSignedUrl(s3, command, { expiresIn: 300 });
+}
 
-  return url;
-};
+module.exports = { generateUploadUrl };

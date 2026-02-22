@@ -1,97 +1,92 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import Navbar from "../components/Navbar";
+import DashboardLayout from "../components/DashboardLayout";
 
 function StudentDashboard() {
+  const token = localStorage.getItem("token");
   const [videos, setVideos] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState(null);
 
   useEffect(() => {
     const fetchVideos = async () => {
-      try {
-        const token = localStorage.getItem("token");
-
-        const res = await axios.get(
-          "http://localhost:5000/api/videos",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        setVideos(res.data);
-      } catch (err) {
-        console.error("FETCH ERROR:", err);
-      } finally {
-        setLoading(false);
-      }
+      const res = await axios.get(
+        "http://localhost:5000/api/videos",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setVideos(res.data);
     };
 
     fetchVideos();
   }, []);
 
   return (
-    <>
-      <Navbar />
+    <DashboardLayout>
+      <h1 className="page-title">All Lectures</h1>
 
-      <div className="dashboard-container">
-        <h2>Browse Lectures</h2>
-
-        {loading && <p>Loading videos...</p>}
-
-        {!loading && videos.length === 0 && (
-          <p>No videos available yet.</p>
-        )}
-
-        <div className="video-grid">
-          {videos.map((video) => (
-            <div
-              key={video.id}
-              className="video-thumbnail"
-              onClick={() => setSelectedVideo(video)}
-            >
+      <div className="video-grid">
+        {videos.map((video) => (
+          <div
+            key={video.id}
+            className="video-card"
+            onClick={() => setSelectedVideo(video)}
+          >
+            {/* Thumbnail */}
+            <div className="video-thumbnail-wrapper">
               <img
-                src="https://media.licdn.com/dms/image/sync/v2/D4D27AQFH_F5mJm6Ckw/articleshare-shrink_800/articleshare-shrink_800/0/1711534397506?e=2147483647&v=beta&t=kXiVc8PT70_N5o7CtALby3xIhQ8kESk47Gk-D5jo7rU"
+                src="https://willpittman.net:8080/images/5/57/Aws.png?20200717183155"
                 alt="thumbnail"
-                className="thumbnail-image"
+                className="video-thumbnail"
               />
-
-              <div className="play-icon">▶</div>
-
-              <div className="thumbnail-overlay">
-                <h3>{video.title}</h3>
-                {/* <p>{video.description}</p> */}
-              </div>
             </div>
 
-          ))}
-        </div>
+            {/* Info Section */}
+            <div className="video-info">
+              <div className="video-title">{video.title}</div>
+
+              <div className="video-teacher">
+                👤 {video.teacherName}
+              </div>
+
+              <div className="video-meta">
+                {video.university} • {video.course}
+              </div>
+
+              <div className="video-meta">
+                Year {video.year} - Semester {video.semester}
+              </div>
+
+              <div className="video-meta">
+                {video.subject}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
+      {/* VIDEO MODAL */}
       {selectedVideo && (
         <div
-          className="modal-overlay"
+          className="video-modal"
           onClick={() => setSelectedVideo(null)}
         >
           <div
-            className="modal-content"
+            className="video-modal-content"
             onClick={(e) => e.stopPropagation()}
           >
-            <video
-              width="100%"
-              controls
-              controlsList="nodownload"
-              disablePictureInPicture
-              autoPlay
-            >
-              <source src={selectedVideo.videoUrl} />
+            <h2 style={{ marginBottom: "15px" }}>
+              {selectedVideo.title}
+            </h2>
+
+            <video controls controlsList="nodownload" autoPlay>
+              <source
+                src={selectedVideo.videoUrl}
+                type="video/mp4"
+              />
             </video>
           </div>
         </div>
       )}
-    </>
+    </DashboardLayout>
   );
 }
 

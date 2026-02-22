@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   student
   teacher
+  admin
 }
 
 model User {
@@ -22,14 +23,37 @@ model User {
   createdAt DateTime @default(now())
 }
 
+model University {
+  id       String   @id @default(uuid())
+  name     String   @unique
+  courses  Course[]
+}
+
+model Course {
+  id            String      @id @default(uuid())
+  name          String
+  universityId  String
+  university    University  @relation(fields: [universityId], references: [id])
+  subjects      Subject[]
+}
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String
+  year      Int
+  semester  Int
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  videos    Video[]
+}
+
 model Video {
-  id            String   @id @default(uuid())
-  title         String
-  description   String?
-  rawKey        String
-  processedKey  String?
-  status        String
-  uploadedBy    String
-  user          User     @relation(fields: [uploadedBy], references: [id])
-  createdAt     DateTime @default(now())
+  id        String   @id @default(uuid())
+  title     String
+  s3Key     String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  createdAt DateTime @default(now())
 }
