@@ -77,11 +77,14 @@ function StudentDashboard() {
               {selectedVideo.title}
             </h2>
 
-            <video controls controlsList="nodownload" autoPlay>
-              <source
-                src={selectedVideo.videoUrl}
-                type="video/mp4"
-              />
+            <video
+              controls
+              controlsList="nodownload"
+              onContextMenu={(e) => e.preventDefault()}
+              autoPlay
+              style={{ width: "100%" }}
+            >
+              <source src={selectedVideo.videoUrl} type="video/mp4" />
             </video>
           </div>
         </div>
